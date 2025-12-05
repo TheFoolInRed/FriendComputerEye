@@ -1,0 +1,870 @@
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: sans-serif;
+}
+
+/* CRT outer body – big and imposing */
+#crt {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 95vmin;
+    height: 75vmin;
+    background: radial-gradient(circle at 20% 0%, #ffffff 0, #d2d2d2 25%, #777 70%, #333 100%);
+    border-radius: 10vmin;
+    box-shadow:
+            0 20px 50px rgba(0, 0, 0, 0.95),
+            0 0 110px rgba(0, 255, 255, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: perspective(900px) rotateX(7deg);
+}
+#status-text {
+    position: absolute;
+    bottom: 5%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.6vmin;
+    color: #8fe7ff;
+    text-shadow: 0 0 4px #000, 0 0 8px rgba(0,255,255,0.7);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease-out;
+    z-index: 6;
+}
+
+#status-text.visible {
+    opacity: 0.85;
+}
+#eye.destabilize #iris {
+    animation: irisJitter 0.12s infinite alternate;
+}
+
+@keyframes irisJitter {
+    0% {
+        transform: translate(
+                calc(-50% + var(--iris-offset-x, 0px) - 2px),
+                calc(-50% + var(--iris-offset-y, 0px) + 1px)
+        ) scale(1.05);
+    }
+    100% {
+        transform: translate(
+                calc(-50% + var(--iris-offset-x, 0px) + 2px),
+                calc(-50% + var(--iris-offset-y, 0px) - 1px)
+        ) scale(0.95);
+    }
+}
+
+/* Inner white frame – tapered (trapezoid) */
+#frame {
+    position: relative;
+    width: 90%;
+    height: 82%;
+    background: linear-gradient(180deg, #fdfdfd 0, #f5f5f5 35%, #d8d8d8 100%);
+    box-shadow:
+            inset 0 0 24px rgba(0, 0, 0, 0.5),
+            0 0 18px rgba(255, 255, 255, 0.6);
+    border-radius: 7vmin;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    clip-path: polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
+}
+/* STATIC / NOISE OVERLAY – rolling horizontal CRT noise */
+#noise-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 20;
+
+    /* single horizontal-line pattern */
+    background-image:
+            repeating-linear-gradient(
+                    to bottom,
+                    rgba(255,255,255,0.16) 0,
+                    rgba(255,255,255,0.16) 1px,
+                    transparent 1px,
+                    transparent 4px
+            );
+
+    background-size: 100% 6px;     /* line spacing */
+    opacity: 0;
+    mix-blend-mode: screen;        /* brightens over dark screen */
+}
+
+#screen.glitch-active #noise-overlay {
+    opacity: 0.5;
+    animation: staticNoise 0.35s linear infinite;
+}
+
+/* Lines roll vertically for a "bad sync" look */
+@keyframes staticNoise {
+    0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: 0 24px; /* distance of roll per cycle */
+    }
+}
+
+
+
+/* When glitch is active, animate the noise and make it visible */
+#screen.glitch-active #noise-overlay {
+    opacity: 0.9;
+    animation: staticNoise 0.15s steps(3, end) infinite;
+}
+
+@keyframes staticNoise {
+    0% {
+        background-position: 0 0, 0 0;
+        transform: translate(0, 0);
+    }
+    50% {
+        background-position: 100px -80px, -60px 40px;
+        transform: translate(-2px, 1px);
+    }
+    100% {
+        background-position: -120px 60px, 80px -50px;
+        transform: translate(2px, -2px);
+    }
+}
+
+
+/** Screen Wobble #screen.glitch-active {
+    animation: glitchShift 0.35s infinite steps(2,end);
+}
+**/
+
+@keyframes glitchShift {
+    0%   { transform: translateX(-2px) scaleX(1.02); }
+    50%  { transform: translateX(3px) scaleX(0.98); }
+    100% { transform: translateX(-2px) scaleX(1.02); }
+}
+
+/* System label on the frame */
+#sys-label {
+    position: absolute;
+    bottom: 4%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.8vmin;
+    color: #222;
+    text-shadow:
+            0 0 1px #fff,
+            0 0 4px rgba(0, 0, 0, 0.6);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    z-index: 10;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+/* Screen – inset + tapered */
+#screen {
+    position: relative;
+    width: 94%;
+    height: 92%;
+    margin: auto;
+    background:
+            radial-gradient(circle at 50% 15%, #487d9f 0, #111722 55%, #05070b 90%);
+    border-radius: 4vmin;
+    overflow: hidden;
+    box-shadow:
+            inset 0 0 60px rgba(0, 0, 0, 0.9),
+            0 0 10px rgba(0, 0, 0, 0.7);
+    transform: scaleX(1.02);
+    clip-path: polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
+}
+
+/* Slight barrel distortion / inner vignette */
+#screen::before {
+    content: "";
+    position: absolute;
+    inset: -10%;
+    border-radius: 40% / 55%;
+    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+/* Scanline overlay */
+#scanlines {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image:
+            repeating-linear-gradient(
+                    to bottom,
+                    rgba(255,255,255,0.18) 0,
+                    rgba(255,255,255,0.18) 5px,
+                    transparent 5px,
+                    transparent 11px
+            );
+
+    background-size: 100% 16px;
+
+    mix-blend-mode: soft-light;
+    opacity: 0.4;
+    z-index: 3;
+}
+
+/* Eye container (sclera) */
+#eye {
+    position: absolute;
+    width: 54%;
+    height: 54%;
+    border-radius: 50%;
+    background:
+            radial-gradient(circle at 50% 50%, #fefefe 0, #dde5ff 45%, #c2c9e0 70%, #6a718c 100%);
+    box-shadow:
+            0 0 45px rgba(0, 0, 0, 0.9),
+            inset 0 0 35px rgba(0, 0, 0, 0.85);
+    overflow: hidden;
+    animation: idlePulse 6s ease-in-out infinite;
+    z-index: 1;
+    transition: opacity 0.25s ease-out;
+}
+
+/* Eye hidden state */
+#eye.eye-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Iris container – moves & scales with CSS vars */
+#iris {
+    position: absolute;
+    width: 46%;
+    height: 46%;
+    left: 50%;
+    top: 50%;
+    border-radius: 50%;
+    transform:
+            translate(
+                    calc(-50% + var(--iris-offset-x, 0px)),
+                    calc(-50% + var(--iris-offset-y, 0px))
+            )
+            scale(var(--iris-scale, 1));
+    background:
+            radial-gradient(circle at 50% 50%, #0b1a2b 0, #2673c9 35%, #02162e 85%),
+            repeating-conic-gradient(
+                    from 0deg,
+                    rgba(255, 255, 255, 0.25) 0deg,
+                    rgba(255, 255, 255, 0.25) 2deg,
+                    transparent 2deg,
+                    transparent 4deg
+            );
+    box-shadow:
+            0 0 25px rgba(0, 0, 0, 0.9),
+            0 0 70px rgba(0, 178, 255, 0.4);
+    transition: transform 0.25s ease-out;
+}
+
+/* Pupil */
+#pupil {
+    position: absolute;
+    width: 56%;
+    height: 56%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(var(--pupil-scale, 1));
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 35%, #000 0, #020202 40%, #050505 100%);
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.9);
+}
+/* ---------------------------------------
+   CRT WARMUP / SHUTDOWN EFFECTS
+----------------------------------------*/
+
+/* Base layers (invisible until activated) */
+#crt-warmup,
+#crt-shutdown {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    z-index: 50;       /* Above the eye, below the frame */
+    pointer-events: none;
+    opacity: 0;
+}
+
+/* ----- WARMUP ANIMATION ----- */
+
+#crt-warmup.active {
+    opacity: 1;
+    animation: crtWarmup 1.8s ease-out forwards;
+}
+
+@keyframes crtWarmup {
+    0% {
+        background: #000;
+    }
+    20% {
+        background:
+                linear-gradient(to right,
+                #000 0%, #fff 48%, #fff 52%, #000 100%);
+    }
+    45% {
+        background:
+                radial-gradient(circle,
+                #ffffff 0%,
+                #dddddd 20%,
+                #111 60%,
+                #000 90%);
+    }
+    100% {
+        opacity: 0;
+        background: transparent;
+    }
+}
+
+/* ----- SHUTDOWN ANIMATION ----- */
+
+#crt-shutdown.active {
+    opacity: 1;
+    animation: crtShutdown 1.4s ease-in forwards;
+}
+
+@keyframes crtShutdown {
+    0% {
+        background: transparent;
+    }
+    20% {
+        background:
+                radial-gradient(circle,
+                #fff 0%,
+                #eee 10%,
+                #111 70%,
+                #000 100%);
+    }
+    60% {
+        background:
+                linear-gradient(to right,
+                #000 0%, #fff 48%, #fff 52%, #000 100%);
+    }
+    85% {
+        background:
+                linear-gradient(to right,
+                #000 49%, #fff 50%, #000 51%);
+    }
+    100% {
+        background:
+                radial-gradient(circle,
+                #fff 0%, #000 100%);
+        opacity: 0;
+    }
+}
+/* ---------------------------------------
+   CRT DEGAUSS EFFECT
+----------------------------------------*/
+
+/* Color bloom overlay */
+#crt-degauss {
+    position: absolute;
+    inset: -5%;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 45;  /* above eye, below frame */
+    mix-blend-mode: screen;
+    background:
+            radial-gradient(circle at 30% 20%, rgba(255,0,0,0.8), transparent 55%),
+            radial-gradient(circle at 70% 30%, rgba(0,255,255,0.8), transparent 60%),
+            radial-gradient(circle at 50% 80%, rgba(0,255,0,0.7), transparent 60%);
+}
+
+/* When active, flash + fade the color bloom */
+#crt-degauss.active {
+    animation: crtDegaussBloom 0.7s ease-out forwards;
+}
+
+@keyframes crtDegaussBloom {
+    0% {
+        opacity: 0.9;
+        filter: blur(0px);
+    }
+    30% {
+        opacity: 0.7;
+        filter: blur(2px);
+    }
+    60% {
+        opacity: 0.4;
+        filter: blur(1px);
+    }
+    100% {
+        opacity: 0;
+        filter: blur(0px);
+    }
+}
+
+/* Screen wobble just for degauss (no permanent wobble) */
+#screen.degauss-active {
+    animation: crtDegaussShake 0.7s ease-out;
+}
+
+@keyframes crtDegaussShake {
+    0% {
+        transform: scaleX(1.02) scale(1.08) skewX(1.5deg);
+    }
+    20% {
+        transform: scaleX(1.02) scale(0.97) skewX(-2deg);
+    }
+    40% {
+        transform: scaleX(1.02) scale(1.04) skewX(2deg);
+    }
+    60% {
+        transform: scaleX(1.02) scale(0.99) skewX(-1deg);
+    }
+    100% {
+        transform: scaleX(1.02) scale(1) skewX(0deg);
+    }
+}
+
+/* Highlight */
+#highlight {
+    position: absolute;
+    width: 22%;
+    height: 22%;
+    left: 30%;
+    top: 32%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), transparent 70%);
+    opacity: 0.9;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    z-index: 2;
+}
+
+/* Angry eye: red iris & glow */
+#eye.angry #iris {
+    background:
+            radial-gradient(circle at 50% 50%, #700000 0, #ff4444 35%, #390000 80%),
+            repeating-conic-gradient(
+                    from 0deg,
+                    rgba(255, 255, 255, 0.25) 0deg,
+                    rgba(255, 255, 255, 0.25) 2deg,
+                    transparent 2deg,
+                    transparent 4deg
+            );
+    box-shadow:
+            0 0 35px rgba(255, 0, 0, 0.9),
+            0 0 80px rgba(255, 0, 0, 0.6);
+}
+
+@keyframes idlePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+/* Eyelids inside the eye */
+.lid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: #05070b;
+    z-index: 4;
+    pointer-events: none;
+    transition: height 0.15s ease-out;
+}
+
+#lid-top {
+    top: 0;
+    height: 0;
+}
+
+#lid-bottom {
+    bottom: 0;
+    height: 0;
+}
+
+@keyframes blinkTop {
+    0%, 100% { height: 0; }
+    40%, 60% { height: 50%; }
+}
+
+@keyframes blinkBottom {
+    0%, 100% { height: 0; }
+    40%, 60% { height: 50%; }
+}
+
+#eye.blinking #lid-top {
+    animation: blinkTop 0.18s linear;
+}
+
+#eye.blinking #lid-bottom {
+    animation: blinkBottom 0.18s linear;
+}
+
+/* Suspicious squint */
+#eye.squint #lid-top {
+    height: 24%;
+}
+#eye.squint #lid-bottom {
+    height: 24%;
+}
+
+/* ---------------------------------------
+   DRUGGED MODE
+   - Pupil slowly dilates
+   - Iris cycles through 70s psychedelic hues
+----------------------------------------*/
+
+/* Freeze idle pulse while drugged so it feels "locked in" */
+#eye.drugged {
+    animation: none;
+}
+
+/* Pupil: big slow dilation */
+#eye.drugged #pupil {
+    animation: drugPupil 3.2s ease-out forwards;
+}
+
+@keyframes drugPupil {
+    0% {
+        transform: translate(-50%, -50%) scale(1.0);
+    }
+    40% {
+        transform: translate(-50%, -50%) scale(1.3);
+    }
+    80% {
+        transform: translate(-50%, -50%) scale(1.55);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.6);
+    }
+}
+
+/* Iris: psychedelic color cycling */
+#eye.drugged #iris {
+    animation: drugIris 3.2s ease-in-out forwards;
+}
+
+@keyframes drugIris {
+    0% {
+        filter: none;
+        box-shadow:
+                0 0 25px rgba(0, 0, 0, 0.9),
+                0 0 70px rgba(0, 178, 255, 0.4);
+    }
+    33% {
+        filter: hue-rotate(90deg) saturate(1.8) brightness(1.15);
+        box-shadow:
+                0 0 30px rgba(255, 120, 80, 0.9),
+                0 0 85px rgba(255, 180, 100, 0.6);
+    }
+    66% {
+        filter: hue-rotate(200deg) saturate(2.2) brightness(1.2);
+        box-shadow:
+                0 0 32px rgba(150, 60, 255, 0.9),
+                0 0 90px rgba(180, 120, 255, 0.6);
+    }
+    100% {
+        filter: hue-rotate(260deg) saturate(2.4) brightness(1.15);
+        box-shadow:
+                0 0 34px rgba(0, 220, 180, 0.95),
+                0 0 95px rgba(0, 255, 220, 0.7);
+    }
+}
+
+/* Optional: highlight shimmer */
+#eye.drugged #highlight {
+    animation: drugHighlight 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes drugHighlight {
+    0% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+
+/* ---------------------------------------
+   INTERROGATION MODE
+   - Eye stops idle pulsing
+   - Pupil narrows
+   - Iris shifts toward red
+   - Ends with a squint
+----------------------------------------*/
+
+/* Freeze the idle breathing when interrogating */
+#eye.interrogation {
+    animation: none;
+}
+
+/* Animate pupil narrowing */
+#eye.interrogation #pupil {
+    animation: interrogationPupil 1.6s ease-out forwards;
+}
+
+@keyframes interrogationPupil {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(0.55);
+    }
+}
+
+/* Animate iris toward a more "angry" red tone */
+#eye.interrogation #iris {
+    animation: interrogationIris 1.6s ease-out forwards;
+    /* keep existing box-shadow but we'll drive it redder over time */
+}
+
+@keyframes interrogationIris {
+    0% {
+        filter: none;
+        box-shadow:
+                0 0 25px rgba(0, 0, 0, 0.9),
+                0 0 70px rgba(0, 178, 255, 0.4);
+    }
+    50% {
+        filter: hue-rotate(-25deg) saturate(1.8) brightness(1.1);
+        box-shadow:
+                0 0 30px rgba(200, 40, 40, 0.8),
+                0 0 80px rgba(255, 60, 60, 0.5);
+    }
+    100% {
+        filter: hue-rotate(-45deg) saturate(2.4) brightness(1.2);
+        box-shadow:
+                0 0 35px rgba(255, 0, 0, 0.95),
+                0 0 90px rgba(255, 0, 0, 0.65);
+    }
+}
+
+/* Error overlay */
+#error-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(120, 0, 0, 0.75);
+    color: #ffdddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3vmin;
+    font-size: 2.2vmin;
+    font-weight: 700;
+    text-shadow:
+            0 0 6px #000,
+            0 0 10px #ff0000;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+
+#screen.error-active #error-overlay {
+    opacity: 1;
+    animation: errorFlash 0.15s steps(2, end) infinite;
+}
+
+@keyframes errorFlash {
+    0% { opacity: 0.3; }
+    50% { opacity: 1; }
+    100% { opacity: 0.3; }
+}
+/* Clone delivery alert overlay */
+#clone-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.9), rgba(0,120,0,0.85), rgba(0,0,0,0.95));
+    color: #e9ffe9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3vmin;
+    font-size: 2.4vmin;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-shadow:
+            0 0 6px #000,
+            0 0 10px rgba(0,255,0,0.9);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 6;
+}
+
+/* When clone alert is active */
+#screen.clone-alert #clone-overlay {
+    opacity: 1;
+    animation: cloneFlash 0.18s steps(2, end) 6,
+    cloneFade 1.6s ease-out forwards;
+}
+
+@keyframes cloneFlash {
+    0% { opacity: 0.2; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
+@keyframes cloneFade {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* Ad overlay – now uses poster images + HTML text */
+#ad-overlay {
+    position: absolute;
+    inset: 0;
+    /* Slightly dim + tint behind poster */
+    background: radial-gradient(circle at 20% 0%, rgba(10,20,40,0.9), rgba(0,0,0,0.95));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity 0.2s ease-out;
+}
+
+#ad-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* When ad is active, dim the eye */
+#screen.show-ad #eye {
+    opacity: 0.08;
+}
+
+#ad-content {
+    text-align: center;
+    color: #ffeefc;
+    text-shadow: 0 0 6px #000, 0 0 14px rgba(0,0,0,0.9);
+    font-family: "Trebuchet MS", system-ui, sans-serif;
+    max-width: 80%;
+}
+
+#ad-product {
+    font-size: 2vmin;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    margin-bottom: 0.8vmin;
+    opacity: 0.9;
+}
+
+/* NEW: actual poster image */
+#ad-image {
+    max-width: 40%;
+    max-height: 40%;
+    height: auto;
+    margin: 1.2vmin auto 1.6vmin;
+    display: block;
+    border-radius: 1.4vmin;
+    box-shadow:
+            0 0 18px rgba(0,0,0,0.9),
+            0 0 30px rgba(0,0,0,0.7);
+}
+
+#ad-text-main {
+    font-size: 2.6vmin;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    margin-bottom: 0.8vmin;
+}
+
+#ad-text-sub {
+    font-size: 1.9vmin;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 0.5vmin;
+}
+
+#ad-text-mini {
+    font-size: 1.3vmin;
+    opacity: 0.8;
+}
+
+/* REC indicator on the frame */
+#rec-container {
+    position: absolute;
+    top: 6%;
+    right: 10%;
+    display: flex;
+    align-items: center;
+    gap: 0.6vmin;
+    z-index: 2;
+}
+
+#rec-light {
+    width: 1.9vmin;
+    height: 1.9vmin;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, #ffffff, #ff2a2a 45%, #7a0000 100%);
+    box-shadow:
+            0 0 8px rgba(255, 0, 0, 0.9),
+            0 0 16px rgba(255, 0, 0, 0.7);
+    animation: recPulse 1.2s ease-in-out infinite;
+}
+
+#rec-text {
+    font-size: 1.6vmin;
+    font-weight: 700;
+    color: #b00000;
+    text-shadow: 0 0 3px #fff, 0 0 6px rgba(0,0,0,0.6);
+    letter-spacing: 0.2em;
+}
+
+@keyframes recPulse {
+    0%, 100% {
+        box-shadow:
+                0 0 4px rgba(255, 0, 0, 0.7),
+                0 0 10px rgba(255, 0, 0, 0.5);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow:
+                0 0 10px rgba(255, 0, 0, 1),
+                0 0 20px rgba(255, 0, 0, 0.9);
+        transform: scale(1.1);
+    }
+}
+
+/* Tiny help text */
+#help {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #0ff;
+    font-size: 0.8rem;
+    opacity: 0.7;
+    text-shadow: 0 0 4px #000;
+}
+
+/* GM controls */
+#controls {
+    position: absolute;
+    bottom: 14px;
+    right: 18px;
+    display: flex;
+    gap: 8px;
+    z-index: 20;
+}
+
+#controls button {
+    background: #111;
+    color: #0ff;
+    border: 1px solid #0ff;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-shadow: 0 0 4px #000;
+}
+
+#controls button:hover {
+    background: #033;
+}

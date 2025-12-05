@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Friend Computer Eye</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    /* CRT outer body – big and imposing */
+    #crt {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 95vmin;
+      height: 75vmin;
+      background: radial-gradient(circle at 20% 0%, #ffffff 0, #d2d2d2 25%, #777 70%, #333 100%);
+      border-radius: 10vmin;
+      box-shadow:
+              0 20px 50px rgba(0, 0, 0, 0.95),
+              0 0 110px rgba(0, 255, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: perspective(900px) rotateX(7deg);
+    }
+
+    /* Inner white frame – tapered (trapezoid) */
+    #frame {
+      position: relative;
+      width: 90%;
+      height: 82%;
+      background: linear-gradient(180deg, #fdfdfd 0, #f5f5f5 35%, #d8d8d8 100%);
+      box-shadow:
+              inset 0 0 24px rgba(0, 0, 0, 0.5),
+              0 0 18px rgba(255, 255, 255, 0.6);
+      border-radius: 7vmin;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      clip-path: polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
+    }
+
+    /* System label on the frame */
+    #sys-label {
+      position: absolute;
+      bottom: 4%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.8vmin;
+      color: #222;
+      text-shadow:
+              0 0 1px #fff,
+              0 0 4px rgba(0, 0, 0, 0.6);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      z-index: 10;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    /* Screen – inset + tapered */
+    #screen {
+      position: relative;
+      width: 94%;
+      height: 92%;
+      margin: auto;
+      background:
+              radial-gradient(circle at 50% 15%, #487d9f 0, #111722 55%, #05070b 90%);
+      border-radius: 4vmin;
+      overflow: hidden;
+      box-shadow:
+              inset 0 0 60px rgba(0, 0, 0, 0.9),
+              0 0 10px rgba(0, 0, 0, 0.7);
+      transform: scaleX(1.02);
+      clip-path: polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
+    }
+
+    /* Slight barrel distortion / inner vignette */
+    #screen::before {
+      content: "";
+      position: absolute;
+      inset: -10%;
+      border-radius: 40% / 55%;
+      box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+    }
+
+    /* Scanline overlay */
+    #scanlines {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+              to bottom,
+              rgba(255, 255, 255, 0.06) 0,
+              rgba(255, 255, 255, 0.06) 1px,
+              transparent 2px,
+              transparent 4px
+      );
+      mix-blend-mode: soft-light;
+      opacity: 0.4;
+      z-index: 3;
+    }
+
+    /* Eye container (sclera) */
+    #eye {
+      position: absolute;
+      width: 54%;
+      height: 54%;
+      border-radius: 50%;
+      background:
+              radial-gradient(circle at 50% 50%, #fefefe 0, #dde5ff 45%, #c2c9e0 70%, #6a718c 100%);
+      box-shadow:
+              0 0 45px rgba(0, 0, 0, 0.9),
+              inset 0 0 35px rgba(0, 0, 0, 0.85);
+      overflow: hidden;
+      animation: idlePulse 6s ease-in-out infinite;
+      z-index: 1;
+      transition: opacity 0.25s ease-out;
+    }
+
+    /* Eye hidden state */
+    #eye.eye-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Iris container – moves & scales with CSS vars */
+    #iris {
+      position: absolute;
+      width: 46%;
+      height: 46%;
+      left: 50%;
+      top: 50%;
+      border-radius: 50%;
+      transform:
+              translate(
+                      calc(-50% + var(--iris-offset-x, 0px)),
+                      calc(-50% + var(--iris-offset-y, 0px))
+              )
+              scale(var(--iris-scale, 1));
+      background:
+              radial-gradient(circle at 50% 50%, #0b1a2b 0, #2673c9 35%, #02162e 85%),
+              repeating-conic-gradient(
+                      from 0deg,
+                      rgba(255, 255, 255, 0.25) 0deg,
+                      rgba(255, 255, 255, 0.25) 2deg,
+                      transparent 2deg,
+                      transparent 4deg
+              );
+      box-shadow:
+              0 0 25px rgba(0, 0, 0, 0.9),
+              0 0 70px rgba(0, 178, 255, 0.4);
+      transition: transform 0.25s ease-out;
+    }
+
+    /* Pupil */
+    #pupil {
+      position: absolute;
+      width: 56%;
+      height: 56%;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 35%, #000 0, #020202 40%, #050505 100%);
+      box-shadow: 0 0 18px rgba(0, 0, 0, 0.9);
+    }
+
+    /* Highlight */
+    #highlight {
+      position: absolute;
+      width: 22%;
+      height: 22%;
+      left: 30%;
+      top: 32%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), transparent 70%);
+      opacity: 0.9;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      z-index: 2;
+    }
+
+    /* Angry eye: red iris & glow */
+    #eye.angry #iris {
+      background:
+              radial-gradient(circle at 50% 50%, #700000 0, #ff4444 35%, #390000 80%),
+              repeating-conic-gradient(
+                      from 0deg,
+                      rgba(255, 255, 255, 0.25) 0deg,
+                      rgba(255, 255, 255, 0.25) 2deg,
+                      transparent 2deg,
+                      transparent 4deg
+              );
+      box-shadow:
+              0 0 35px rgba(255, 0, 0, 0.9),
+              0 0 80px rgba(255, 0, 0, 0.6);
+    }
+
+    @keyframes idlePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    /* Eyelids inside the eye */
+    .lid {
+      position: absolute;
+      left: 0;
+      right: 0;
+      background: #05070b;
+      z-index: 4;
+      pointer-events: none;
+      transition: height 0.15s ease-out;
+    }
+
+    #lid-top {
+      top: 0;
+      height: 0;
+    }
+
+    #lid-bottom {
+      bottom: 0;
+      height: 0;
+    }
+
+    @keyframes blinkTop {
+      0%, 100% { height: 0; }
+      40%, 60% { height: 50%; }
+    }
+
+    @keyframes blinkBottom {
+      0%, 100% { height: 0; }
+      40%, 60% { height: 50%; }
+    }
+
+    #eye.blinking #lid-top {
+      animation: blinkTop 0.18s linear;
+    }
+
+    #eye.blinking #lid-bottom {
+      animation: blinkBottom 0.18s linear;
+    }
+
+    /* Suspicious squint */
+    #eye.squint #lid-top {
+      height: 24%;
+    }
+    #eye.squint #lid-bottom {
+      height: 24%;
+    }
+
+    /* Error overlay */
+    #error-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(120, 0, 0, 0.75);
+      color: #ffdddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 3vmin;
+      font-size: 2.2vmin;
+      font-weight: 700;
+      text-shadow:
+              0 0 6px #000,
+              0 0 10px #ff0000;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    #screen.error-active #error-overlay {
+      opacity: 1;
+      animation: errorFlash 0.15s steps(2, end) infinite;
+    }
+
+    @keyframes errorFlash {
+      0% { opacity: 0.3; }
+      50% { opacity: 1; }
+      100% { opacity: 0.3; }
+    }
+
+    /* Ad overlay – now uses poster images + HTML text */
+    #ad-overlay {
+      position: absolute;
+      inset: 0;
+      /* Slightly dim + tint behind poster */
+      background: radial-gradient(circle at 20% 0%, rgba(10,20,40,0.9), rgba(0,0,0,0.95));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10;
+      transition: opacity 0.2s ease-out;
+    }
+
+    #ad-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* When ad is active, dim the eye */
+    #screen.show-ad #eye {
+      opacity: 0.08;
+    }
+
+    #ad-content {
+      text-align: center;
+      color: #ffeefc;
+      text-shadow: 0 0 6px #000, 0 0 14px rgba(0,0,0,0.9);
+      font-family: "Trebuchet MS", system-ui, sans-serif;
+      max-width: 80%;
+    }
+
+    #ad-product {
+      font-size: 2vmin;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      margin-bottom: 0.8vmin;
+      opacity: 0.9;
+    }
+
+    /* NEW: actual poster image */
+    #ad-image {
+      max-width: 40%;
+      max-height: 40%;
+      height: auto;
+      margin: 1.2vmin auto 1.6vmin;
+      display: block;
+      border-radius: 1.4vmin;
+      box-shadow:
+              0 0 18px rgba(0,0,0,0.9),
+              0 0 30px rgba(0,0,0,0.7);
+    }
+
+    #ad-text-main {
+      font-size: 2.6vmin;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      margin-bottom: 0.8vmin;
+    }
+
+    #ad-text-sub {
+      font-size: 1.9vmin;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      margin-bottom: 0.5vmin;
+    }
+
+    #ad-text-mini {
+      font-size: 1.3vmin;
+      opacity: 0.8;
+    }
+
+    /* REC indicator on the frame */
+    #rec-container {
+      position: absolute;
+      top: 6%;
+      right: 10%;
+      display: flex;
+      align-items: center;
+      gap: 0.6vmin;
+      z-index: 2;
+    }
+
+    #rec-light {
+      width: 1.9vmin;
+      height: 1.9vmin;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 25%, #ffffff, #ff2a2a 45%, #7a0000 100%);
+      box-shadow:
+              0 0 8px rgba(255, 0, 0, 0.9),
+              0 0 16px rgba(255, 0, 0, 0.7);
+      animation: recPulse 1.2s ease-in-out infinite;
+    }
+
+    #rec-text {
+      font-size: 1.6vmin;
+      font-weight: 700;
+      color: #b00000;
+      text-shadow: 0 0 3px #fff, 0 0 6px rgba(0,0,0,0.6);
+      letter-spacing: 0.2em;
+    }
+
+    @keyframes recPulse {
+      0%, 100% {
+        box-shadow:
+                0 0 4px rgba(255, 0, 0, 0.7),
+                0 0 10px rgba(255, 0, 0, 0.5);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow:
+                0 0 10px rgba(255, 0, 0, 1),
+                0 0 20px rgba(255, 0, 0, 0.9);
+        transform: scale(1.1);
+      }
+    }
+
+    /* Tiny help text */
+    #help {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #0ff;
+      font-size: 0.8rem;
+      opacity: 0.7;
+      text-shadow: 0 0 4px #000;
+    }
+
+    /* GM controls */
+    #controls {
+      position: absolute;
+      bottom: 14px;
+      right: 18px;
+      display: flex;
+      gap: 8px;
+      z-index: 20;
+    }
+
+    #controls button {
+      background: #111;
+      color: #0ff;
+      border: 1px solid #0ff;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      text-shadow: 0 0 4px #000;
+    }
+
+    #controls button:hover {
+      background: #033;
+    }
+  </style>
+</head>
+<body>
+<div id="crt">
+  <div id="frame">
+    <div id="sys-label">
+      AlphaOS vNULL.0 · STATUS: NOMINALLY FUNCTIONAL
+    </div>
+
+    <div id="rec-container">
+      <div id="rec-light"></div>
+      <div id="rec-text">REC</div>
+    </div>
+
+    <div id="screen">
+      <div id="eye">
+        <div id="iris">
+          <div id="pupil"></div>
+        </div>
+        <div id="highlight"></div>
+        <div id="lid-top" class="lid"></div>
+        <div id="lid-bottom" class="lid"></div>
+      </div>
+
+      <div id="error-overlay">
+        SYSTEM ERROR – REPORT TO NEAREST TERMINATION BOOTH
+      </div>
+
+      <div id="ad-overlay">
+        <div id="ad-content">
+          <div id="ad-product"></div>
+          <img id="ad-image" src="" alt="Alpha Complex Product">
+          <div id="ad-text-main"></div>
+          <div id="ad-text-sub"></div>
+          <div id="ad-text-mini"></div>
+        </div>
+      </div>
+
+      <div id="scanlines"></div>
+    </div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="btn-toggle-eye">Hide Eye (H)</button>
+  <button id="btn-ad">Show Ad (B)</button>
+</div>
+
+<div id="help">
+  Mouse: aim · 1–4: players · P: patrol · A: angry · E: ERROR · S: squint · I: double-blink · H: hide eye · B: ad
+</div>
+
+<script>
+  const screenEl = document.getElementById("screen");
+  const eye = document.getElementById("eye");
+  const iris = document.getElementById("iris");
+
+  const btnToggleEye = document.getElementById("btn-toggle-eye");
+  const btnAd = document.getElementById("btn-ad");
+  const adOverlay = document.getElementById("ad-overlay");
+
+  const adProduct = document.getElementById("ad-product");
+  const adMain = document.getElementById("ad-text-main");
+  const adSub = document.getElementById("ad-text-sub");
+  const adMini = document.getElementById("ad-text-mini");
+  const adImage = document.getElementById("ad-image");
+
+  let eyeHidden = false;
+  let adActive = false;
+
+  const MAX_EYE_OFFSET = 90;
+  const MAX_IRIS_OFFSET = 12;
+
+  let target = { x: 0, y: 0 };
+  let current = { x: 0, y: 0 };
+  let lastMouseTime = Date.now();
+
+  /* Rotating ad definitions – now with optional image paths */
+  const ads = [
+    {
+      product: "Bouncy Bubble Beverage™",
+      image: "images/bbb.png",
+      main: "ENJOY BOUNCY BUBBLE BEVERAGE™",
+      sub: "HAPPINESS IS MANDATORY",
+      mini: "Side effects may include loyalty, enthusiasm, and spontaneous confessions."
+    },
+    {
+      product: "Hot Fun™ (On-a-Stick)",
+      image: null, // TODO: add image when you have a Hot Fun poster
+      main: "TRY HOT FUN™ ON-A-STICK",
+      sub: "NOW 37% LESS LIKELY TO IGNITE YOUR LIPS",
+      mini: "May contain traces of prior test subjects."
+    },
+    {
+      product: "Cold Fun™",
+      image: "images/cold_fun.png",
+      main: "COLD FUN™",
+      sub: "NOW WITH FLAVOR APPROVED FOR YOUR CLEARANCE LEVEL!",
+      mini: "Consumption above clearance may result in summary promotion to ‘deceased’."
+    },
+    {
+      product: "Happy Pill™",
+      image: null, // optional future poster
+      main: "HAPPY PILL™ (STANDARD ISSUE)",
+      sub: "BECAUSE SADNESS IS TREASON.",
+      mini: "Report any remaining unhappiness to your nearest Loyalty Officer immediately."
+    },
+    {
+      product: "Infrared-Brand Toothpaste™",
+      image: "images/infrared_toothpaste.png",
+      main: "INFRARED-BRAND TOOTHPASTE™",
+      sub: "BRUSH AWAY PLAQUE. DISSOLVE SECRETS.",
+      mini: "Warning: extended brushing may remove unsanctioned thoughts."
+    },
+    {
+      product: "Zap-O-Matic™ Laser Cleaning System",
+      image: "images/zapomatic.png",
+      main: "ZAP-O-MATIC™ LASER CLEANING",
+      sub: "FOR WHEN SOAP JUST ISN’T LETHAL ENOUGH.",
+      mini: "Not responsible for removal of limbs, memories, or classified material."
+    },
+    {
+      product: "LoyaltyCheck™ Home Test Kit",
+      image: null, // optional poster later
+      main: "LOYALTYCHECK™ HOME TEST KIT",
+      sub: "TEST YOUR FRIENDS BEFORE THEY TESTIFY ABOUT YOU.",
+      mini: "Positive result requires immediate celebration and/or denunciation."
+    },
+    {
+      product: "AutoForm-3000™ Expense Forms",
+      image: null, // optional poster later
+      main: "AUTOFORM-3000™ TROUBLESHOOTER EXPENSE FORMS",
+      sub: "TURN 3 HOURS OF PAPERWORK INTO 45 PAINFUL MINUTES.",
+      mini: "Improperly filed forms may incur retroactive fines up to time of birth."
+    },
+    {
+      product: "Peace Enforcement Sidearm™",
+      image: null, // optional poster later
+      main: "PEACE ENFORCEMENT SIDEARM™",
+      sub: "NOTHING SAYS ‘TRUST’ LIKE A CHARGED LASER.",
+      mini: "Point in a safe direction. Or at traitors. Friend Computer trusts your judgment."
+    }
+  ];
+
+  function showRandomAd() {
+    const ad = ads[Math.floor(Math.random() * ads.length)];
+
+    adProduct.textContent = ad.product;
+    adMain.textContent = ad.main;
+    adSub.textContent = ad.sub;
+    adMini.textContent = ad.mini;
+
+    if (ad.image) {
+      adImage.style.display = "block";
+      adImage.src = ad.image;
+    } else {
+      adImage.style.display = "none";
+      adImage.removeAttribute("src");
+    }
+  }
+
+  const gazePresets = {
+    "1": { xFrac: 0.2, yFrac: 0.7 },
+    "2": { xFrac: 0.4, yFrac: 0.7 },
+    "3": { xFrac: 0.6, yFrac: 0.7 },
+    "4": { xFrac: 0.8, yFrac: 0.7 }
+  };
+
+  let isPatrolling = false;
+  let patrolIndex = 0;
+
+  const patrolPoints = [
+    { xFrac: 0.5, yFrac: 0.25, hold: 1400 },
+    { xFrac: 0.18, yFrac: 0.7, hold: 1400 },
+    { xFrac: 0.82, yFrac: 0.7, hold: 1400 },
+    { xFrac: 0.35, yFrac: 0.7, hold: 1400 },
+    { xFrac: 0.65, yFrac: 0.7, hold: 1400 },
+  ];
+
+  function runPatrolStep() {
+    if (!isPatrolling || adActive) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const p = patrolPoints[patrolIndex];
+    target.x = p.xFrac * w;
+    target.y = p.yFrac * h;
+    lastMouseTime = Date.now();
+    patrolIndex = (patrolIndex + 1) % patrolPoints.length;
+    setTimeout(runPatrolStep, p.hold);
+  }
+
+  function animate() {
+    const now = Date.now();
+    const dt = Math.min((now - lastMouseTime) / 16, 2);
+    const ease = 0.15 * dt;
+    current.x += (target.x - current.x) * ease;
+    current.y += (target.y - current.y) * ease;
+    moveEyeTo(current.x, current.y);
+    moveIrisTo(current.x, current.y);
+    requestAnimationFrame(animate);
+  }
+
+  function moveEyeTo(x, y) {
+    const rect = screenEl.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = x - centerX;
+    const dy = y - centerY;
+    const dist = Math.hypot(dx, dy) || 1;
+    const clamped = Math.min(dist, MAX_EYE_OFFSET);
+    const nx = (dx / dist) * clamped;
+    const ny = (dy / dist) * clamped;
+    const eyeCenterX = centerX + nx;
+    const eyeCenterY = centerY + ny;
+    const eyeWidth = eye.offsetWidth;
+    const eyeHeight = eye.offsetHeight;
+    const localX = eyeCenterX - rect.left - eyeWidth / 2;
+    const localY = eyeCenterY - rect.top - eyeHeight / 2;
+    eye.style.left = localX + "px";
+    eye.style.top = localY + "px";
+  }
+
+  function moveIrisTo(x, y) {
+    const rectEye = eye.getBoundingClientRect();
+    const cx = rectEye.left + rectEye.width / 2;
+    const cy = rectEye.top + rectEye.height / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+    const dist = Math.hypot(dx, dy) || 1;
+    const clamped = Math.min(dist, MAX_IRIS_OFFSET);
+    const nx = (dx / dist) * clamped;
+    const ny = (dy / dist) * clamped;
+    iris.style.setProperty("--iris-offset-x", nx + "px");
+    iris.style.setProperty("--iris-offset-y", ny + "px");
+  }
+
+  document.addEventListener("mousemove", (e) => {
+    if (adActive) return;
+    target.x = e.clientX;
+    target.y = e.clientY;
+    lastMouseTime = Date.now();
+    isPatrolling = false;
+  });
+
+  function doBlink() {
+    eye.classList.remove("blinking");
+    void eye.offsetWidth;
+    eye.classList.add("blinking");
+    setTimeout(() => {
+      eye.classList.remove("blinking");
+    }, 220);
+  }
+
+  function doDoubleBlink() {
+    doBlink();
+    setTimeout(doBlink, 230);
+  }
+
+  setInterval(() => {
+    const now = Date.now();
+    if (adActive) return;
+    if (now - lastMouseTime > 800 && Math.random() < 0.25) {
+      doBlink();
+    }
+  }, 3000);
+
+  function randomDilation() {
+    const base = 1.0;
+    const variance = 0.15;
+    const scale = base + (Math.random() * 2 - 1) * variance;
+    iris.style.setProperty("--iris-scale", scale.toFixed(2));
+  }
+
+  setInterval(() => {
+    if (!screenEl.classList.contains("error-active") &&
+            !eye.classList.contains("angry") &&
+            !adActive) {
+      randomDilation();
+    }
+  }, 2500);
+
+  function toggleEyeVisibility() {
+    eyeHidden = !eyeHidden;
+    if (eyeHidden) {
+      eye.classList.add("eye-hidden");
+      btnToggleEye.textContent = "Show Eye (H)";
+    } else {
+      eye.classList.remove("eye-hidden");
+      btnToggleEye.textContent = "Hide Eye (H)";
+    }
+  }
+
+  function toggleAd() {
+    adActive = !adActive;
+    if (adActive) {
+      showRandomAd();
+      screenEl.classList.add("show-ad");
+      adOverlay.classList.add("visible");
+      btnAd.textContent = "Hide Ad (B)";
+      isPatrolling = false;
+    } else {
+      screenEl.classList.remove("show-ad");
+      adOverlay.classList.remove("visible");
+      btnAd.textContent = "Show Ad (B)";
+    }
+  }
+
+  btnToggleEye.addEventListener("click", toggleEyeVisibility);
+  btnAd.addEventListener("click", toggleAd);
+
+  document.addEventListener("keydown", (e) => {
+    const preset = gazePresets[e.key];
+
+    if (preset && !adActive) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      target.x = preset.xFrac * w;
+      target.y = preset.yFrac * h;
+      lastMouseTime = Date.now();
+      isPatrolling = false;
+      return;
+    }
+
+    if (e.key === "p" || e.key === "P") {
+      if (adActive) return;
+      isPatrolling = !isPatrolling;
+      if (isPatrolling) {
+        patrolIndex = 0;
+        runPatrolStep();
+      }
+      return;
+    }
+
+    if (e.key === "a" || e.key === "A") {
+      if (adActive) return;
+      eye.classList.toggle("angry");
+      iris.style.setProperty(
+              "--iris-scale",
+              eye.classList.contains("angry") ? "0.9" : "1.0"
+      );
+      doBlink();
+      return;
+    }
+
+    if (e.key === "e" || e.key === "E") {
+      if (adActive) return;
+      const active = screenEl.classList.toggle("error-active");
+      iris.style.setProperty("--iris-scale", active ? "1.15" : "1.0");
+      isPatrolling = false;
+      doBlink();
+      return;
+    }
+
+    if (e.key === "s" || e.key === "S") {
+      if (adActive) return;
+      eye.classList.toggle("squint");
+      return;
+    }
+
+    if (e.key === "i" || e.key === "I") {
+      if (adActive) return;
+      doDoubleBlink();
+      return;
+    }
+
+    if (e.key === "h" || e.key === "H") {
+      toggleEyeVisibility();
+      return;
+    }
+
+    if (e.key === "b" || e.key === "B") {
+      toggleAd();
+      return;
+    }
+  });
+
+  setInterval(() => {
+    const now = Date.now();
+    if (!isPatrolling && !adActive && now - lastMouseTime > 3000) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const cx = w / 2;
+      const cy = h / 2;
+      const angle = Math.random() * Math.PI * 2;
+      const radius = (Math.random() * 0.25 + 0.1) * Math.min(w, h);
+      target.x = cx + Math.cos(angle) * radius;
+      target.y = cy + Math.sin(angle) * radius;
+    }
+  }, 1200);
+
+  function init() {
+    const rect = screenEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    target.x = cx;
+    target.y = cy;
+    current.x = cx;
+    current.y = cy;
+    iris.style.setProperty("--iris-offset-x", "0px");
+    iris.style.setProperty("--iris-offset-y", "0px");
+    iris.style.setProperty("--iris-scale", "1.0");
+    animate();
+  }
+
+  window.addEventListener("load", init);
+</script>
+</body>
+</html>
