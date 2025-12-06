@@ -17,7 +17,9 @@
     <div id="sys-label">
       AlphaOS vNULL.222-10v4(6)_FINAL(2) · STATUS: BUFFER OVERFLOW
     </div>
-
+    <div id="threat-indicator">
+      <span id="threat-label">THREAT LEVEL: BLUE</span>
+    </div>
     <div id="rec-container">
       <div id="rec-light"></div>
       <div id="rec-text">REC</div>
@@ -78,8 +80,15 @@
   <button id="btn-drugged">Drugged (L)</button>
 
 
-</div>
-</div>
+  <!-- NEW: Friend Computer speech controls -->
+  <div id="speech-controls">
+    <textarea
+            id="fc-text"
+            rows="2"
+            placeholder="Type Friend Computer's response here…"
+    ></textarea>
+    <button id="btn-fc-speak">Speak</button>
+  </div>
 </div>
 
 <div id="help">

@@ -1,68 +1,271 @@
 // ========================================================
 // FRIEND COMPUTER EYE - JS CONTROLLER
+// (display side / index.html)
 // ========================================================
 
 // ---------------------------
 // ELEMENT LOOKUPS
 // ---------------------------
-const screenEl      = document.getElementById("screen");
-const statusText    = document.getElementById("status-text");
+const screenEl   = document.getElementById("screen");
+const statusText = document.getElementById("status-text");
 
-const eye           = document.getElementById("eye");
-const iris          = document.getElementById("iris");
-const pupil         = document.getElementById("pupil");
+const eye   = document.getElementById("eye");
+const iris  = document.getElementById("iris");
+const pupil = document.getElementById("pupil");
 
-const btnToggleEye  = document.getElementById("btn-toggle-eye");
-const btnAd         = document.getElementById("btn-ad");
-const adOverlay     = document.getElementById("ad-overlay");
-const btnClone      = document.getElementById("btn-clone");
-const btnGlitch     = document.getElementById("btn-glitch");
-const btnDestabilize= document.getElementById("btn-destabilize");
-const btnHappyAd    = document.getElementById("btn-happy-ad");
-const btnInterrogate= document.getElementById("btn-interrogate");
-const btnDrugged    = document.getElementById("btn-drugged");
+const adOverlay = document.getElementById("ad-overlay");
 
-const adProduct     = document.getElementById("ad-product");
-const adMain        = document.getElementById("ad-text-main");
-const adSub         = document.getElementById("ad-text-sub");
-const adMini        = document.getElementById("ad-text-mini");
-const adImage       = document.getElementById("ad-image");
+const adProduct = document.getElementById("ad-product");
+const adMain    = document.getElementById("ad-text-main");
+const adSub     = document.getElementById("ad-text-sub");
+const adMini    = document.getElementById("ad-text-mini");
+const adImage   = document.getElementById("ad-image");
 
 const crtWarmupEl   = document.getElementById("crt-warmup");
 const crtShutdownEl = document.getElementById("crt-shutdown");
 const crtDegaussEl  = document.getElementById("crt-degauss");
 
-const sndCRTStart   = document.getElementById("crt-start");
-const sndCRTHum     = document.getElementById("crt-hum");
+const sndCRTStart = document.getElementById("crt-start");
+const sndCRTHum   = document.getElementById("crt-hum");
 
 // For the little shutdown "pop"
-const audioCtx      = new (window.AudioContext || window.webkitAudioContext)();
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 
 // ---------------------------
 // GLOBAL STATE
 // ---------------------------
-let eyeHidden       = false;
-let adActive        = false;
+let eyeHidden = false;
+let adActive  = false;
 
 const MAX_EYE_OFFSET  = 90;
 const MAX_IRIS_OFFSET = 12;
 
-let target   = { x: 0, y: 0 };
-let current  = { x: 0, y: 0 };
+let target        = { x: 0, y: 0 };
+let current       = { x: 0, y: 0 };
 let lastMouseTime = Date.now();
 
-let isPatrolling    = false;
-let patrolIndex     = 0;
+let isPatrolling = false;
+let patrolIndex  = 0;
 
-let manualGlitch    = false;  // true if user toggled glitch with G
-let crtOn           = true;
+let manualGlitch = false;  // true if user toggled glitch with G
+let crtOn        = true;
 
 let interrogationActive = false;
 let interrogationTimer  = null;
 
 let druggedActive = false;
 let druggedTimer  = null;
+
+
+// ==============================
+// Cross-tab control (GM console)
+// ==============================
+let gmChannel = null;
+
+if ("BroadcastChannel" in window) {
+    gmChannel = new BroadcastChannel("friend-computer");
+
+    gmChannel.onmessage = (event) => {
+        const msg = event.data;
+        if (!msg || !msg.type) return;
+
+        if (msg.type === "cmd") {
+            handleRemoteCommand(msg.command, msg.payload);
+        }
+    };
+}
+// ---------------------------
+// THREAT LEVEL SYSTEM
+// ---------------------------
+const THREAT_LEVELS = ["BLUE", "YELLOW", "ORANGE", "RED", "ULTRAVIOLET"];
+const THREAT_CLASSES = [
+    "threat-blue",
+    "threat-yellow",
+    "threat-orange",
+    "threat-red",
+    "threat-ultraviolet"
+];
+
+let currentThreatLevel = "BLUE";
+
+function setThreatLevel(level) {
+    if (!level) level = "BLUE";
+    level = level.toUpperCase();
+
+    if (!THREAT_LEVELS.includes(level)) {
+        level = "BLUE";
+    }
+
+    currentThreatLevel = level;
+
+    // Update screen class
+    THREAT_CLASSES.forEach((cls) => screenEl.classList.remove(cls));
+    const cssClass = "threat-" + level.toLowerCase();
+    screenEl.classList.add(cssClass);
+
+    // Update indicator label + its own class
+    const threatIndicator = document.getElementById("threat-indicator");
+    const threatLabel = document.getElementById("threat-label");
+
+    if (threatIndicator) {
+        THREAT_CLASSES.forEach((cls) => threatIndicator.classList.remove(cls));
+        threatIndicator.classList.add(cssClass);
+    }
+    if (threatLabel) {
+        threatLabel.textContent = "THREAT LEVEL: " + level;
+    }
+
+    // Optional: a status line snark per level
+    let msg = "";
+    switch (level) {
+        case "BLUE":
+            msg = "THREAT LEVEL BLUE: ALL SYSTEMS NOMINAL* *PROBABLY.";
+            break;
+        case "YELLOW":
+            msg = "THREAT LEVEL YELLOW: POSSIBLE TREASONOUS THOUGHTS DETECTED.";
+            break;
+        case "ORANGE":
+            msg = "THREAT LEVEL ORANGE: CONFIRMED TREASON RISK.";
+            break;
+        case "RED":
+            msg = "THREAT LEVEL RED: TERMINATION IMMINENT. HAVE A PLEASANT DAY.";
+            break;
+        case "ULTRAVIOLET":
+            msg = "THREAT LEVEL ULTRAVIOLET: INFORMATION HAZARD. AVERT YOUR EYES.";
+            break;
+    }
+
+    showStatusMessage(msg);
+
+    // Small glitch flourish on major jumps
+    if (typeof glitchBurst === "function" && (level === "ORANGE" || level === "RED" || level === "ULTRAVIOLET")) {
+        glitchBurst(260);
+    }
+}
+
+function handleRemoteCommand(command, payload) {
+    switch (command) {
+        case "toggleEye":
+            toggleEyeVisibility();
+            break;
+        case "ad":
+            toggleAd();
+            break;
+        case "happyAd":
+            showHappyAd();
+            break;
+        case "glitch":
+            toggleGlitch();
+            break;
+        case "setThreat":
+            if (payload && payload.level) {
+                setThreatLevel(payload.level);
+            } else {
+                setThreatLevel("BLUE");
+            }
+            break;
+        case "destabilize":
+            destabilizeIris();
+            break;
+        case "error": {
+            const active = screenEl.classList.toggle("error-active");
+            iris.style.setProperty("--iris-scale", active ? "1.15" : "1.0");
+            if (active) glitchBurst(260);
+            break;
+        }
+        case "angry":
+            eye.classList.toggle("angry");
+            iris.style.setProperty(
+                "--iris-scale",
+                eye.classList.contains("angry") ? "0.9" : "1.0"
+            );
+            doBlink();
+            break;
+        case "squint":
+            eye.classList.toggle("squint");
+            break;
+        case "interrogate":
+            interrogationActive ? stopInterrogation() : startInterrogation();
+            break;
+        case "drugged":
+            druggedActive ? stopDrugged() : startDrugged();
+            break;
+        case "cloneAlert":
+            triggerCloneAlert();
+            break;
+        case "degauss":
+            crtDegauss();
+            break;
+        case "speak":
+            if (payload && payload.text) {
+                // Just show it in the status line, no audio needed
+                showStatusMessage(`COMPUTER RESPONSE: ${payload.text}`);
+            }
+            break;
+
+
+        default:
+            console.warn("Unknown GM command:", command);
+    }
+}
+
+
+// =======================
+// Friend Computer voice
+// =======================
+const fcTextInput = document.getElementById("fc-text"); // null on index.html
+let fcVoice = null;
+
+function selectFriendComputerVoice() {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return;
+
+    const preferredNames = [
+        "Microsoft Zira Desktop",
+        "Microsoft Zira",
+        "Google US English",
+        "Samantha",
+        "Victoria",
+    ];
+
+    for (const name of preferredNames) {
+        const v = voices.find(
+            (voice) =>
+                voice.name.toLowerCase().includes(name.toLowerCase()) &&
+                voice.lang.toLowerCase().startsWith("en")
+        );
+        if (v) {
+            fcVoice = v;
+            return;
+        }
+    }
+
+    const anyEnglish = voices.find((v) =>
+        v.lang.toLowerCase().startsWith("en")
+    );
+    fcVoice = anyEnglish || voices[0];
+}
+
+if ("speechSynthesis" in window) {
+    window.speechSynthesis.onvoiceschanged = selectFriendComputerVoice;
+    selectFriendComputerVoice();
+}
+
+function speakAsFriendComputer(text) {
+    if (!text || !window.speechSynthesis) return;
+
+    window.speechSynthesis.cancel();
+
+    const utter = new SpeechSynthesisUtterance(text);
+    if (fcVoice) utter.voice = fcVoice;
+    utter.lang = fcVoice?.lang || "en-US";
+    utter.rate = 0.9;
+    utter.pitch = 1.3;
+    utter.volume = 1.0;
+
+    window.speechSynthesis.speak(utter);
+}
 
 
 // ---------------------------
@@ -74,64 +277,64 @@ const ads = [
         image: "images/bbb.png",
         main: "ENJOY BOUNCY BUBBLE BEVERAGE™",
         sub: "HAPPINESS IS MANDATORY",
-        mini: "Side effects may include loyalty, enthusiasm, and spontaneous confessions."
+        mini: "Side effects may include loyalty, enthusiasm, and spontaneous confessions.",
     },
     {
         product: "Hot Fun™ (On-a-Stick)",
         image: null,
         main: "TRY HOT FUN™ ON-A-STICK",
         sub: "NOW 37% LESS LIKELY TO IGNITE YOUR LIPS",
-        mini: "May contain traces of prior test subjects."
+        mini: "May contain traces of prior test subjects.",
     },
     {
         product: "Cold Fun™",
         image: "images/cold_fun.png",
         main: "COLD FUN™",
         sub: "NOW WITH FLAVOR APPROVED FOR YOUR CLEARANCE LEVEL!",
-        mini: "Consumption above clearance may result in summary promotion to ‘deceased’."
+        mini: "Consumption above clearance may result in summary promotion to ‘deceased’.",
     },
     {
         product: "Happy Pill™",
-        image: null,
+        image: null, // your poster later
         main: "HAPPY PILL™ (STANDARD ISSUE)",
         sub: "BECAUSE SADNESS IS TREASON.",
-        mini: "Report any remaining unhappiness to your nearest Loyalty Officer immediately."
+        mini: "Report any remaining unhappiness to your nearest Loyalty Officer immediately.",
     },
     {
         product: "Infrared-Brand Toothpaste™",
         image: "images/infrared_toothpaste.png",
         main: "INFRARED-BRAND TOOTHPASTE™",
         sub: "BRUSH AWAY PLAQUE. DISSOLVE SECRETS.",
-        mini: "Warning: extended brushing may remove unsanctioned thoughts."
+        mini: "Warning: extended brushing may remove unsanctioned thoughts.",
     },
     {
         product: "Zap-O-Matic™ Laser Cleaning System",
         image: "images/zapomatic.png",
         main: "ZAP-O-MATIC™ LASER CLEANING",
         sub: "FOR WHEN SOAP JUST ISN’T LETHAL ENOUGH.",
-        mini: "Not responsible for removal of limbs, memories, or classified material."
+        mini: "Not responsible for removal of limbs, memories, or classified material.",
     },
     {
         product: "LoyaltyCheck™ Home Test Kit",
         image: null,
         main: "LOYALTYCHECK™ HOME TEST KIT",
         sub: "TEST YOUR FRIENDS BEFORE THEY TESTIFY ABOUT YOU.",
-        mini: "Positive result requires immediate celebration and/or denunciation."
+        mini: "Positive result requires immediate celebration and/or denunciation.",
     },
     {
         product: "AutoForm-3000™ Expense Forms",
         image: null,
         main: "AUTOFORM-3000™ TROUBLESHOOTER EXPENSE FORMS",
         sub: "TURN 3 HOURS OF PAPERWORK INTO 45 PAINFUL MINUTES.",
-        mini: "Improperly filed forms may incur retroactive fines up to time of birth."
+        mini: "Improperly filed forms may incur retroactive fines up to time of birth.",
     },
     {
         product: "Peace Enforcement Sidearm™",
         image: null,
         main: "PEACE ENFORCEMENT SIDEARM™",
         sub: "NOTHING SAYS ‘TRUST’ LIKE A CHARGED LASER.",
-        mini: "Point in a safe direction. Or at traitors. Friend Computer trusts your judgment."
-    }
+        mini: "Point in a safe direction. Or at traitors. Friend Computer trusts your judgment.",
+    },
 ];
 
 function showRandomAd() {
@@ -152,13 +355,13 @@ function showRandomAd() {
 }
 
 function showHappyAd() {
-    const happy = ads.find(a => a.product.startsWith("Happy Pill")) || ads[0];
+    const happy =
+        ads.find((a) => a.product.startsWith("Happy Pill")) || ads[0];
 
     if (!screenEl.classList.contains("show-ad")) {
         screenEl.classList.add("show-ad");
         adOverlay.classList.add("visible");
         adActive = true;
-        btnAd.textContent = "Hide Ad (B)";
         glitchBurst(220);
         showStatusMessage("ALL CITIZENS HAPPY.");
     }
@@ -175,8 +378,6 @@ function showHappyAd() {
         adImage.style.display = "none";
         adImage.removeAttribute("src");
     }
-
-    showStatusMessage("ALL CITIZENS HAPPY.");
 }
 
 
@@ -187,11 +388,19 @@ const statusLines = [
     "ALL SYSTEMS NOMINAL.",
     "NO TRAITOROUS ACTIVITY DETECTED.",
     "ALL CITIZENS HAPPY.",
+    "THE COMPUTER IS YOUR FRIEND",
+    "YOUR EQUIPMENT IS IN ERROR. YOU WILL STOP GLOWING SHORTLY",
     "ERROR COUNT: 0 (APPROXIMATELY).",
     "LOYALTY INDEX: SATISFACTORY* *MARGIN OF ERROR ±93%.",
+    "THIS MISSION WILL BE VERY SAFE AND LOTS OF FUN FOR ALL OF YOU",
+    "INSTRUCTIONS FOR DISARMING NUCLEAR DEVICES ARE NOT AVAILABLE AT YOUR CLEARANCE LEVEL. PLEASE PUT DEVICE IN A SAFE PLACE",
+    "PLEASE REPORT ALL SIGNS OF COMMIE MUTANT TRAITOR ACTIVITY",
+    "COLD FUN IS NOT TO BE USED AS REACTOR SHIELDING",
+    "YOU ARE IN ERROR. NO ONE IS SCREAMING. THANK YOU FOR YOUR COOPERATION",
     "TRUST THE COMPUTER. THE COMPUTER IS YOUR FRIEND.",
+    "HAVE YOU HAD YOUR BOUNCY BUBBLE BEVERAGE TODAY, CITIZEN?",
     "PLEASE IGNORE ANY SUSPICIOUS NOISES.",
-    "REMEMBER: QUESTIONING THE COMPUTER IS TREASON."
+    "REMEMBER: QUESTIONING THE COMPUTER IS TREASON.",
 ];
 
 function showStatusMessage(text) {
@@ -201,12 +410,13 @@ function showStatusMessage(text) {
     setTimeout(() => statusText.classList.remove("visible"), 5000);
 }
 
-// Random lying status line every ~22s (unless busy with error/ad)
+// Random lying status line every ~22s
 setInterval(() => {
     const busy =
         screenEl.classList.contains("error-active") ||
         screenEl.classList.contains("show-ad");
     if (busy) return;
+
     const line = statusLines[Math.floor(Math.random() * statusLines.length)];
     showStatusMessage(line);
 }, 22000);
@@ -223,10 +433,6 @@ function toggleGlitch() {
     }
 }
 
-/**
- * Short, temporary glitch burst.
- * Respects manualGlitch: we don't override a user-toggled glitch.
- */
 function glitchBurst(duration = 250) {
     if (manualGlitch) return;
     screenEl.classList.add("glitch-active");
@@ -239,13 +445,13 @@ function glitchBurst(duration = 250) {
 
 
 // ---------------------------
-// EYE MOVEMENT (POSITION + IRIS)
+// EYE MOVEMENT
 // ---------------------------
 const gazePresets = {
     "1": { xFrac: 0.2, yFrac: 0.7 },
     "2": { xFrac: 0.4, yFrac: 0.7 },
     "3": { xFrac: 0.6, yFrac: 0.7 },
-    "4": { xFrac: 0.8, yFrac: 0.7 }
+    "4": { xFrac: 0.8, yFrac: 0.7 },
 };
 
 const patrolPoints = [
@@ -253,13 +459,13 @@ const patrolPoints = [
     { xFrac: 0.18, yFrac: 0.7,  hold: 1400 },
     { xFrac: 0.82, yFrac: 0.7,  hold: 1400 },
     { xFrac: 0.35, yFrac: 0.7,  hold: 1400 },
-    { xFrac: 0.65, yFrac: 0.7,  hold: 1400 }
+    { xFrac: 0.65, yFrac: 0.7,  hold: 1400 },
 ];
 
 function moveEyeTo(x, y) {
-    const rect     = screenEl.getBoundingClientRect();
-    const centerX  = rect.left + rect.width / 2;
-    const centerY  = rect.top  + rect.height / 2;
+    const rect    = screenEl.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top  + rect.height / 2;
 
     const dx = x - centerX;
     const dy = y - centerY;
@@ -292,8 +498,9 @@ function moveIrisTo(x, y) {
 
     const dist    = Math.hypot(dx, dy) || 1;
     const clamped = Math.min(dist, MAX_IRIS_OFFSET);
-    const nx      = (dx / dist) * clamped;
-    const ny      = (dy / dist) * clamped;
+
+    const nx = (dx / dist) * clamped;
+    const ny = (dy / dist) * clamped;
 
     iris.style.setProperty("--iris-offset-x", nx + "px");
     iris.style.setProperty("--iris-offset-y", ny + "px");
@@ -320,7 +527,7 @@ function animate() {
 // ---------------------------
 function doBlink() {
     eye.classList.remove("blinking");
-    void eye.offsetWidth;  // reflow to restart animation
+    void eye.offsetWidth;
     eye.classList.add("blinking");
     setTimeout(() => {
         eye.classList.remove("blinking");
@@ -332,7 +539,6 @@ function doDoubleBlink() {
     setTimeout(doBlink, 230);
 }
 
-// Idle random blink
 setInterval(() => {
     const now = Date.now();
     if (adActive) return;
@@ -348,7 +554,6 @@ function randomDilation() {
     iris.style.setProperty("--iris-scale", scale.toFixed(2));
 }
 
-// Idle random dilation (unless angry / error / ad)
 setInterval(() => {
     if (!screenEl.classList.contains("error-active") &&
         !eye.classList.contains("angry") &&
@@ -377,7 +582,6 @@ function runPatrolStep() {
     setTimeout(runPatrolStep, p.hold);
 }
 
-// Idle wandering when mouse inactive & not patrolling/ads
 setInterval(() => {
     const now = Date.now();
     if (!isPatrolling && !adActive && now - lastMouseTime > 3000) {
@@ -394,7 +598,7 @@ setInterval(() => {
 
 
 // ---------------------------
-// CRT AUDIO
+// CRT AUDIO & FX
 // ---------------------------
 function playWarmupSound() {
     sndCRTStart.currentTime = 0;
@@ -431,10 +635,6 @@ function playShutdownPop() {
     osc.stop(audioCtx.currentTime + 0.1);
 }
 
-
-// ---------------------------
-// CRT WARMUP / SHUTDOWN / DEGAUSS
-// ---------------------------
 function crtWarmup() {
     crtWarmupEl.classList.remove("active");
     void crtWarmupEl.offsetWidth;
@@ -464,45 +664,35 @@ function crtDegauss() {
 // ---------------------------
 // SPECIAL MODES
 // ---------------------------
-
-// Destabilize iris
 function destabilizeIris() {
     eye.classList.add("destabilize");
     showStatusMessage("MINOR OCULAR INSTABILITY DETECTED. THIS IS NORMAL.");
     setTimeout(() => eye.classList.remove("destabilize"), 1500);
 }
 
-// Clone alert
 function triggerCloneAlert() {
     screenEl.classList.add("clone-alert");
 
-    if (typeof doBlink === "function") {
-        doBlink();
-    }
+    doBlink();
     glitchBurst(240);
 
-    if (iris && iris.style) {
-        iris.style.setProperty("--iris-scale", "1.12");
-        setTimeout(() => {
-            iris.style.setProperty("--iris-scale", "1.0");
-        }, 800);
-    }
+    iris.style.setProperty("--iris-scale", "1.12");
+    setTimeout(() => {
+        iris.style.setProperty("--iris-scale", "1.0");
+    }, 800);
 
     showStatusMessage("NEW CLONE DELIVERY INCOMING.");
 
     setTimeout(() => {
         screenEl.classList.remove("clone-alert");
-    }, 1800);
+    }, 5000);
 }
 
-// Interrogation mode
 function startInterrogation() {
     if (interrogationActive) return;
     interrogationActive = true;
 
-    if (typeof isPatrolling !== "undefined") {
-        isPatrolling = false;
-    }
+    isPatrolling = false;
 
     eye.classList.remove("angry", "squint", "destabilize");
     eye.classList.add("interrogation");
@@ -533,43 +723,38 @@ function stopInterrogation() {
     showStatusMessage("INTERROGATION COMPLETE.");
 }
 
-// Drugged mode – "citizen has consumed unauthorized chemicals"
+// Drugged mode
 function startDrugged() {
     if (druggedActive) return;
     druggedActive = true;
 
-    // Stop patrol if you want it locked; comment out if you want drifting
-    isPatrolling = false;
-
-    // Clear conflicting moods
-    eye.classList.remove("angry", "interrogation", "squint", "destabilize");
-
     eye.classList.add("drugged");
+    showStatusMessage("OCULAR PHARMACEUTICALS DEPLOYED.");
 
-    // Little blink + static flair
-    doBlink();
-    glitchBurst(220);
+    iris.style.setProperty("--iris-scale", "1.4");
 
-    showStatusMessage("UNAUTHORIZED CHEMICALS DETECTED. PLEASE RELAX, CITIZEN.");
+    const pulse = () => {
+        if (!druggedActive) return;
+        const base = 1.2;
+        const variance = 0.25;
+        const scale = base + (Math.random() * 2 - 1) * variance;
+        iris.style.setProperty("--iris-scale", scale.toFixed(2));
+    };
 
-    // Optionally auto-end after a few seconds
-    druggedTimer = setTimeout(() => {
-        stopDrugged();
-    }, 6000);  // keep the big pupil for a bit
+    pulse();
+    druggedTimer = setInterval(pulse, 700);
 }
 
 function stopDrugged() {
+    if (!druggedActive) return;
     druggedActive = false;
-    eye.classList.remove("drugged");
 
+    eye.classList.remove("drugged");
     if (druggedTimer) {
-        clearTimeout(druggedTimer);
+        clearInterval(druggedTimer);
         druggedTimer = null;
     }
-
-    // Reset pupil transform to default
-    pupil.style.transform = "translate(-50%, -50%)";
-
+    iris.style.setProperty("--iris-scale", "1.0");
     showStatusMessage("CHEMICAL LEVELS NOMINALLY SAFE* *PROBABLY.");
 }
 
@@ -581,10 +766,8 @@ function toggleEyeVisibility() {
     eyeHidden = !eyeHidden;
     if (eyeHidden) {
         eye.classList.add("eye-hidden");
-        btnToggleEye.textContent = "Show Eye (H)";
     } else {
         eye.classList.remove("eye-hidden");
-        btnToggleEye.textContent = "Hide Eye (H)";
     }
 }
 
@@ -595,13 +778,11 @@ function toggleAd() {
         showRandomAd();
         screenEl.classList.add("show-ad");
         adOverlay.classList.add("visible");
-        btnAd.textContent = "Hide Ad (B)";
         isPatrolling = false;
         glitchBurst(220);
     } else {
         screenEl.classList.remove("show-ad");
         adOverlay.classList.remove("visible");
-        btnAd.textContent = "Show Ad (B)";
     }
 }
 
@@ -615,22 +796,6 @@ document.addEventListener("mousemove", (e) => {
     target.y = e.clientY;
     lastMouseTime = Date.now();
     isPatrolling = false;
-});
-
-btnToggleEye.addEventListener("click", toggleEyeVisibility);
-btnAd.addEventListener("click", toggleAd);
-btnClone.addEventListener("click", triggerCloneAlert);
-btnGlitch.addEventListener("click", toggleGlitch);
-btnDestabilize.addEventListener("click", destabilizeIris);
-btnHappyAd.addEventListener("click", showHappyAd);
-btnInterrogate.addEventListener("click", () => {
-    if (interrogationActive) stopInterrogation();
-    else startInterrogation();
-});
-
-btnDrugged.addEventListener("click", () => {
-    if (druggedActive) stopDrugged();
-    else startDrugged();
 });
 
 document.addEventListener("keydown", (e) => {
@@ -686,17 +851,14 @@ document.addEventListener("keydown", (e) => {
     }
 
     if (e.key === "q" || e.key === "Q") {
-        if (interrogationActive) stopInterrogation();
-        else startInterrogation();
+        interrogationActive ? stopInterrogation() : startInterrogation();
         return;
     }
 
     if (e.key === "l" || e.key === "L") {
-        if (druggedActive) stopDrugged();
-        else startDrugged();
+        druggedActive ? stopDrugged() : startDrugged();
         return;
     }
-
 
     if (e.key === "a" || e.key === "A") {
         if (adActive) return;
@@ -715,9 +877,7 @@ document.addEventListener("keydown", (e) => {
         iris.style.setProperty("--iris-scale", active ? "1.15" : "1.0");
         isPatrolling = false;
         doBlink();
-        if (active) {
-            glitchBurst(280);  // now actually runs
-        }
+        if (active) glitchBurst(280);
         return;
     }
 
@@ -750,8 +910,8 @@ document.addEventListener("keydown", (e) => {
 // ---------------------------
 function init() {
     const rect = screenEl.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top  + rect.height / 2;
+    const cx   = rect.left + rect.width / 2;
+    const cy   = rect.top  + rect.height / 2;
 
     target.x  = cx;
     target.y  = cy;
@@ -761,6 +921,9 @@ function init() {
     iris.style.setProperty("--iris-offset-x", "0px");
     iris.style.setProperty("--iris-offset-y", "0px");
     iris.style.setProperty("--iris-scale", "1.0");
+
+    // default threat level on load
+    setThreatLevel("BLUE");
 
     animate();
 }

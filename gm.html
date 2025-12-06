@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Friend Computer GM Console</title>
+  <link rel="stylesheet" href="css/friend-computer.css" />
+  <style>
+    /* Simple layout so it’s usable on laptop/tablet */
+    body {
+      margin: 0;
+      background: #020308;
+      color: #0ff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #gm-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid #044;
+      font-size: 0.9rem;
+    }
+
+    #gm-panels {
+      display: flex;
+      flex: 1;
+      padding: 8px 12px;
+      gap: 12px;
+    }
+
+    #gm-buttons, #gm-speech {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #gm-buttons button {
+      background: #111;
+      color: #0ff;
+      border: 1px solid #0ff;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    #gm-buttons button:hover {
+      background: #033;
+    }
+
+    #gm-speech textarea {
+      flex: 1;
+      resize: vertical;
+      min-height: 80px;
+      background: #050b10;
+      color: #0ff;
+      border: 1px solid #0ff;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 0.85rem;
+    }
+
+    #gm-speech button {
+      align-self: flex-start;
+      margin-top: 4px;
+      background: #111;
+      color: #0ff;
+      border: 1px solid #0ff;
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    #gm-speech button:hover {
+      background: #033;
+    }
+  </style>
+</head>
+<body>
+<div id="gm-header">
+  Friend Computer GM Console · Open <code>index.html</code> in another tab/window as the display.
+</div>
+
+<div id="gm-panels">
+  <div id="gm-buttons">
+    <button data-cmd="toggleEye">Toggle Eye</button>
+    <button data-cmd="ad">Random Ad</button>
+    <button data-cmd="happyAd">Mandatory Happiness Ad</button>
+    <button data-cmd="glitch">Glitch</button>
+    <button data-cmd="destabilize">Destabilize Iris</button>
+    <button data-cmd="error">ERROR Overlay</button>
+    <button data-cmd="angry">Angry Eye</button>
+    <button data-cmd="squint">Suspicious Squint</button>
+    <button data-cmd="interrogate">Interrogation Mode</button>
+    <button data-cmd="drugged">Drugged Mode</button>
+    <button data-cmd="cloneAlert">New Clone Delivery</button>
+    <button data-cmd="degauss">CRT Degauss</button>
+  </div>
+  <div id="threat-controls">
+    <h3>Threat Level</h3>
+    <button data-cmd="setThreat" data-level="BLUE">BLUE</button>
+    <button data-cmd="setThreat" data-level="YELLOW">YELLOW</button>
+    <button data-cmd="setThreat" data-level="ORANGE">ORANGE</button>
+    <button data-cmd="setThreat" data-level="RED">RED</button>
+    <button data-cmd="setThreat" data-level="ULTRAVIOLET">ULTRAVIOLET</button>
+  </div>
+
+  <div id="gm-speech">
+    <label for="gm-text">Friend Computer response:</label>
+    <textarea id="gm-text"
+              placeholder="Type what Friend Computer will say to the Troubleshooters…"></textarea>
+    <button id="gm-speak">Speak</button>
+    <small>Tip: Ctrl+Enter also sends.</small>
+  </div>
+</div>
+
+<script src="js/gm-console.js" defer></script>
+</body>
+</html>
